@@ -1,0 +1,347 @@
+{
+  "name": "Atención al cliente - Análisis con NVIDIA NIM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "consulta-atencion-cliente",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "39c5fb56-e5d7-4553-bba7-bfc19570dbbe",
+      "name": "Recibir consulta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        112
+      ],
+      "webhookId": "476556d2-7260-4eaa-8459-9e42319b09be"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Cliente: {{ $json.body.name }} ({{ $json.body.email }})\n\nMensaje:\n{{ $json.body.message }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Sos un asistente de atención al cliente. Analizá el mensaje recibido, determiná la prioridad (Baja, Media, Alta) y generá un breve resumen."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "0dbefdef-69a0-4b94-980f-1b917e937ee1",
+      "name": "Analizar prioridad y resumen",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        224,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "984a4441-65fa-4e8d-8fcf-179d55704f82",
+      "name": "NVIDIA NIM",
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [
+        240,
+        336
+      ],
+      "credentials": {
+        "nvidiaApi": {
+          "id": "MII65Krn8z8Tz7Qp",
+          "name": "NVIDIA Nemotron account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"priority\":{\"type\":\"string\",\"enum\":[\"alta\",\"media\",\"baja\"]},\"summary\":{\"type\":\"string\"}},\"required\":[\"priority\",\"summary\"]}"
+      },
+      "id": "dfcd56ec-3d68-46d9-817d-12f9c91ea5a0",
+      "name": "Formato del análisis",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"mensaje\": \"Consulta recibida y procesada correctamente\",\n  \"prioridad_asignada\": \"{{ $('Analizar prioridad y resumen').item.json.output.priority }}\",\n  \"resumen\": \"{{ $('Analizar prioridad y resumen').item.json.output.summary }}\"\n}",
+        "options": {}
+      },
+      "id": "831b903e-c4f7-4b7e-8eb1-ed30ece8e86d",
+      "name": "Responder al cliente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        800,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appiv3aBcXLrEvAy5",
+          "mode": "list",
+          "cachedResultName": "Gestión de Consultas de Clientes",
+          "cachedResultUrl": "https://airtable.com/appiv3aBcXLrEvAy5"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tble8pwoz6nT26v4t",
+          "mode": "list",
+          "cachedResultName": "Historial",
+          "cachedResultUrl": "https://airtable.com/appiv3aBcXLrEvAy5/tble8pwoz6nT26v4t"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Cliente": "{{ $('Recibir consulta').item.json.body.name }}",
+            "Email": "={{ $('Recibir consulta').item.json.body.email }}",
+            "Consulta": "={{ $('Recibir consulta').item.json.body.message }}",
+            "Resumen": "={{ $json.output.summary }}",
+            "Prioridad": "={{ $json.output.priority.charAt(0).toUpperCase() + $json.output.priority.slice(1).toLowerCase() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Consulta",
+              "displayName": "Consulta",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prioridad",
+              "displayName": "Prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Alta",
+                  "value": "Alta"
+                },
+                {
+                  "name": "Media",
+                  "value": "Media"
+                },
+                {
+                  "name": "Baja",
+                  "value": "Baja"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resumen",
+              "displayName": "Resumen",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        112
+      ],
+      "id": "c79729d9-557b-413a-b343-13b97c3fb377",
+      "name": "Registrar en base de datos- Guardar en historial",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "AxpvmRjPhLcc3ZoH",
+          "name": "Airtable account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Recibir consulta": [
+      {
+        "json": {
+          "headers": {
+            "host": "gastonn8n1.app.n8n.cloud",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+            "content-length": "100",
+            "accept": "*/*",
+            "accept-encoding": "gzip, br",
+            "accept-language": "es-US,es-419;q=0.9,es;q=0.8",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "186.122.2.126",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "AR",
+            "cf-ray": "a57f57a59e89c6eb-EZE",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "origin": "null",
+            "priority": "u=1, i",
+            "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "186.122.2.126, 104.23.237.48",
+            "x-forwarded-host": "gastonn8n1.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-52-84768ff5b-4wrbq",
+            "x-is-trusted": "yes",
+            "x-real-ip": "186.122.2.126"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "name": "Gaston",
+            "email": "gaston@ejemplo.com",
+            "message": "Tengo un problema urgente con mi servicio"
+          },
+          "webhookUrl": "https://gastonn8n1.app.n8n.cloud/webhook-test/consulta-atencion-cliente",
+          "executionMode": "test"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Recibir consulta": {
+      "main": [
+        [
+          {
+            "node": "Analizar prioridad y resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar prioridad y resumen": {
+      "main": [
+        [
+          {
+            "node": "Registrar en base de datos- Guardar en historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA NIM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analizar prioridad y resumen",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formato del análisis": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Analizar prioridad y resumen",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar en base de datos- Guardar en historial": {
+      "main": [
+        [
+          {
+            "node": "Responder al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "132fd1a2-6c84-45f6-9e02-ff389db50d4e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e6f9f13b3003443137094ffe4f386121bc6dc391a68d9b19c7b00fa70c5e12d2"
+  },
+  "nodeGroups": [],
+  "id": "px2lwSGNstzduyAI",
+  "tags": []
+}
